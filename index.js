@@ -15,12 +15,20 @@ async function run() {
     try {
         await client.connect();
         const productCollection = client.db('automed-mechines').collection('products');
+        const orderCollection = client.db('automed-mechines').collection('orders');
 
         app.get('/product', async (req, res) => {
             const query = {};
             const cursor = productCollection.find(query);
             const products = await cursor.toArray();
             res.send(products)
+        })
+
+        //for order placed
+        app.post('/order', async (req, res) => {
+            const order = req.body;
+            const result = await orderCollection.insertOne(order);
+            res.send(result);
         })
 
     }
