@@ -17,6 +17,7 @@ async function run() {
         const productCollection = client.db('automed-mechines').collection('products');
         const orderCollection = client.db('automed-mechines').collection('orders');
 
+        //for store all products data
         app.get('/product', async (req, res) => {
             const query = {};
             const cursor = productCollection.find(query);
@@ -24,11 +25,19 @@ async function run() {
             res.send(products)
         })
 
-        //for order placed
+        //for store orders for all users
         app.post('/order', async (req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
             res.send(result);
+        })
+
+        //get orders for specific users
+        app.get('/userOrders', async (req, res) => {
+            const userEmail = req.query.user; //here .user is query perameter to receive user email from clien site
+            const query = { user: userEmail };
+            const orders = await orderCollection.find(query).toArray();
+            res.send(orders);
         })
 
     }
