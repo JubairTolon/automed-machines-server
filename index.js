@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const app = express()
 const port = process.env.PORT || 5000;
+const stripe = require('stripe')(process.env.STRIPE_KEY);
+
 app.use(cors());
 app.use(express.json());
 
@@ -13,7 +15,7 @@ const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications['api-key'];
 apiKey.apiKey = process.env.EMAIL_SENDER_SECRET;
 
-const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
+// const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // var nodemailer = require('nodemailer');
 // var sendinBlue = require('nodemailer-sendinblue-transport');
@@ -73,6 +75,40 @@ function sendOrderEmaill(order) {
         ]
     });
 }
+function sendPaymentConfirmationEmaill(order) {
+    const { _id, user, customer_name, quantity, total, date } = order;
+    new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail({
+
+        "sender": { "email": "zs.tolon0073@gmail.com", "name": "Automed" },
+        "subject": "This is my default subject line",
+        "htmlContent": `<!DOCTYPE html><html><body><h1>Your order list</h1><p>${_id}</p></body></html>`,
+        "params": {
+            "greeting": "This is the default greeting",
+            "headline": "This is the default headline"
+        },
+        "messageVersions": [
+            //Definition for Message Version 1 
+            {
+                "to": [
+                    {
+                        "email": `${user}`,
+                    }
+                ],
+                "textContent": `Your payment for order Id: ${_id} is confirmed.`,
+                "htmlContent": `<!DOCTYPE html>
+                <html>
+                    <body>
+                        <h1>Dear ${customer_name}, wehave received you payment.</h1>
+                        <p>Your ordered ${quantity} items at ${date}</p>
+                        <p>Your total payment amount is $ ${total}</p>
+                    </body>
+                </html>`,
+                "subject": `We have received your payment for order Id: ${_id}`
+            }
+
+        ]
+    });
+}
 
 async function run() {
     try {
@@ -83,6 +119,7 @@ async function run() {
         const productReviewCollection = client.db('automed-mechines').collection('productReviews');
         const userCollection = client.db('automed-mechines').collection('users');
         const subscriptionCollection = client.db('automed-mechines').collection('subscriber');
+        const paymentCollection = client.db('automed-mechines').collection('payments');
 
         const verifyAdmin = async (req, res, next) => {
             const requester = req.decoded.email;
@@ -114,6 +151,15 @@ async function run() {
             const orders = await cursor.toArray();
             res.send(orders)
         })
+
+        //for get all orders for specific user by id
+        app.get('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await orderCollection.findOne(query);
+            res.send(order);
+        })
+
         //get orders for specific users
         app.get('/userOrders', verifyJWT, async (req, res) => {
             const userEmail = req.query.user; //here .user is query perameter to receive user email from clien site
@@ -213,11 +259,46 @@ async function run() {
             const result = await productReviewCollection.insertOne(productReview);
             res.send(result);
         })
+
         //for store subscription for all users
         app.post('/subscription', async (req, res) => {
             const subscriber = req.body;
             const result = await subscriptionCollection.insertOne(subscriber);
             res.send(result);
+        })
+
+        // for payment calculation 
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const order = req.body;
+            const total = order.total;
+            const amount = total * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            })
+            res.send({ clientSecret: paymentIntent.client_secret })
+        });
+
+        /* ******** All patch*********** */
+
+        //for update payment 
+        app.patch('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId,
+                }
+            };
+            const result = await paymentCollection.insertOne(payment);
+            const updatedOrder = await orderCollection.updateOne(filter, updatedDoc);
+            // sendPaymentConfirmationEmaill(updatedOrder);
+
+            res.send(updatedOrder)
+
         })
 
         /* **********put********* */
@@ -254,8 +335,14 @@ async function run() {
         app.delete('/product/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
-            console.log(filter)
             const result = await productCollection.deleteOne(filter);
+            res.send(result);
+        })
+        //for delete single order data 
+        app.delete('/order/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await orderCollection.deleteOne(filter);
             res.send(result);
         })
 
@@ -274,6 +361,7 @@ async function run() {
             const result = await userCollection.deleteOne(filter);
             res.send(result);
         })
+
         //for delete single subscription 
         app.delete('/subscription/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
