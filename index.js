@@ -295,9 +295,23 @@ async function run() {
             };
             const result = await paymentCollection.insertOne(payment);
             const updatedOrder = await orderCollection.updateOne(filter, updatedDoc);
-            // sendPaymentConfirmationEmaill(updatedOrder);
-
+            sendPaymentConfirmationEmaill(updatedOrder);
             res.send(updatedOrder)
+
+        })
+
+        //for update order shipped
+        app.patch('/orderShip/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            // const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    shipped: true,
+                }
+            };
+            const updatedOrder = await orderCollection.updateOne(filter, updatedDoc);
+            res.send(updatedOrder);
 
         })
 
