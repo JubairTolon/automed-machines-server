@@ -282,6 +282,32 @@ async function run() {
 
         /* ******** All patch*********** */
 
+        // //for update payment 
+        // app.patch('/ratingUpdate/:id', async (req, res) => {
+        //     const id = req.params.id;
+        //     const filter = { _id: ObjectId(id) };
+
+        //     const product = await productCollection.findOne(filter);
+
+        //     const reviews = await productReviewCollection.filter(r => r.productId === _id);
+
+        //     let totalRatings = 0;
+        //     reviews?.map(element => totalRatings = totalRatings + element.rating);
+        //     let rating = Math.round(totalRatings / reviews?.length);
+        //     if (isNaN(rating)) {
+        //         product.rating = 0;
+        //     }
+        //     else {
+        //         const updatedDoc = {
+        //             $set: {
+        //                 rating: rating,
+        //             }
+        //         }
+        //         const updatedRating = await productCollection.updateOne(filter, updatedDoc);
+        //         res.send(updatedRating)
+        //     }
+        // })
+
         //for update payment 
         app.patch('/order/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
