@@ -124,7 +124,7 @@ async function run() {
         const verifyAdmin = async (req, res, next) => {
             const requester = req.decoded.email;
             const requesterAccount = await userCollection.findOne({ email: requester });
-            if (requesterAccount.role === 'admin') {
+            if (requesterAccount?.role === 'admin') {
                 next();
             }
             else {
@@ -137,11 +137,26 @@ async function run() {
 
         //for store all products data
         app.get('/product', async (req, res) => {
+            const page = parseInt(req.query.page);
+            const showingItem = parseInt(req.query.showingItem);
             const query = {};
             const cursor = productCollection.find(query);
-            const products = await cursor.toArray();
-
+            let products;
+            {
+                if (page || showingItem) {
+                    products = await cursor.skip(page * showingItem).limit(showingItem).toArray();
+                }
+                else {
+                    products = await cursor.toArray();
+                }
+            }
             res.send(products);
+        })
+
+        //for pagination page count
+        app.get('/productCount', async (req, res) => {
+            const count = await productCollection.estimatedDocumentCount();
+            res.send({ count });
         })
 
         //for get all orders
@@ -200,6 +215,14 @@ async function run() {
             const message = await messageCollection.find(query).toArray();
             res.send(message);
         })
+
+        //get profile info specific user
+        app.get('/profileInfo', verifyJWT, async (req, res) => {
+            const userEmail = req.query.user; //here .user is query perameter to receive user email from clien site
+            const query = { email: userEmail };
+            const user = await userCollection.find(query).toArray();
+            res.send(user);
+        })
         //for get all product review to ui
         app.get('/productReview', async (req, res) => {
             const query = {};
@@ -218,7 +241,7 @@ async function run() {
         app.get('/admin/:email', async (req, res) => {
             const email = req.params.email;
             const user = await userCollection.findOne({ email: email });
-            const isAdmin = user.role === 'admin';
+            const isAdmin = user?.role === 'admin';
             res.send({ admin: isAdmin })
         });
 
@@ -339,7 +362,37 @@ async function run() {
             const updatedOrder = await orderCollection.updateOne(filter, updatedDoc);
             res.send(updatedOrder);
 
-        })
+        });
+
+        //for update a product
+        app.patch('/updateProduct/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const product = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    name: product.name,
+                    pictures: {
+                        img1: product.img,
+                    }
+                }
+            };
+            const updatedProduct = await productCollection.updateOne(filter, updatedDoc);
+            res.send(updatedProduct);
+        });
+        //for update profile
+        app.patch('/updateProfile/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const person = req.body;
+            const filter = { email: email };
+            const updatedDoc = {
+                $set: {
+                    img: person.img
+                }
+            };
+            const updatedProduct = await userCollection.updateOne(filter, updatedDoc);
+            res.send(updatedProduct);
+        });
 
         /* **********put********* */
 
