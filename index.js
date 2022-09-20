@@ -159,6 +159,21 @@ async function run() {
             res.send({ count });
         })
 
+        //for get specific product by id
+        app.get('/product/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const product = await productCollection.findOne(query);
+            res.send(product);
+        })
+        //for get specific product by id
+        app.get('/review/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { productId: id };
+            const reviews = await productReviewCollection.find(query).toArray();
+            res.send(reviews);
+        })
+
         //for get all orders
         app.get('/orders', verifyJWT, verifyAdmin, async (req, res) => {
             const query = {};
