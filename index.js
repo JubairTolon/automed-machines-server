@@ -132,7 +132,6 @@ async function run() {
             }
         }
 
-
         /************  All gets **************/
 
         //for store all products data
@@ -214,7 +213,6 @@ async function run() {
         //     res.send(ids);
 
         // })
-
 
         //for get all messages to ui
         app.get('/message', verifyJWT, verifyAdmin, async (req, res) => {
